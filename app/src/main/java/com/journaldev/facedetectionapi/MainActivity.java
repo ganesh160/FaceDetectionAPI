@@ -1,5 +1,6 @@
 package com.journaldev.facedetectionapi;
 
+
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
@@ -10,12 +11,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.SparseArray;
 import android.view.View;
 import android.widget.Button;
@@ -27,6 +26,13 @@ import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
 import com.google.android.gms.vision.face.Landmark;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.FileProvider;
+
+
+import com.google.android.gms.vision.Frame;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -37,11 +43,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     ImageView imageView, imgTakePicture;
     Button btnProcessNext, btnTakePicture;
     TextView txtSampleDesc, txtTakenPicDesc;
-    private FaceDetector detector;
+     FaceDetector detector;
     Bitmap editedBitmap;
     int currentIndex = 0;
     int[] imageArray;
-    private Uri imageUri;
+    //private Uri imageUri;
+    private Uri apkURI;
     private static final int REQUEST_WRITE_PERMISSION = 200;
     private static final int CAMERA_REQUEST = 101;
 
@@ -121,14 +128,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == CAMERA_REQUEST && resultCode == RESULT_OK) {
-            launchMediaScanIntent();
+
             try {
+                launchMediaScanIntent();
                 processCameraPicture();
             } catch (Exception e) {
+                e.printStackTrace();
                 Toast.makeText(getApplicationContext(), "Failed to load Image", Toast.LENGTH_SHORT).show();
             }
-        }else if (resultCode == RESULT_CANCELED){
+        } else if (resultCode == RESULT_CANCELED) {
             imgTakePicture.setImageResource(android.R.drawable.ic_menu_camera);
             btnTakePicture.setText("TAKE PICTURE");
             txtTakenPicDesc.setVisibility(View.GONE);
@@ -137,26 +147,52 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void launchMediaScanIntent() {
         Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        mediaScanIntent.setData(imageUri);
+        mediaScanIntent.setData(apkURI);
         this.sendBroadcast(mediaScanIntent);
     }
 
+
+
+
     private void startCamera() {
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        File photo = new File(Environment.getExternalStorageDirectory(), "photo.jpg");
-        imageUri = Uri.fromFile(photo);
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
-        startActivityForResult(intent, CAMERA_REQUEST);
+       //Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+       Intent intent ;
+       File photo = new File(Environment.getExternalStorageDirectory(), "photo.jpg");
+//
+//        File photo = new File(this.getFilesDir().toString(), "photo.jpg");
+//
+//         apkURI = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", photo);
+//
+//        //intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+//
+//        //apkURI = Uri.fromFile(photo);
+//        intent.putExtra(MediaStore.EXTRA_OUTPUT, apkURI);
+//
+////        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+//        startActivityForResult(intent, CAMERA_REQUEST);
+
+
+
+
+             intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+             photo = new File(Environment.getExternalStorageDirectory(), "photo.jpg");
+            //apkURI = Uri.fromFile(photo);
+            apkURI = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", photo);
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, apkURI);
+            startActivityForResult(intent, CAMERA_REQUEST);
+
+
+
     }
 
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        if (imageUri != null) {
-            outState.putParcelable(SAVED_INSTANCE_BITMAP, editedBitmap);
-            outState.putString(SAVED_INSTANCE_URI, imageUri.toString());
-        }
-        super.onSaveInstanceState(outState);
-    }
+//    @Override
+//    protected void onSaveInstanceState(Bundle outState) {
+//        if (apkURI != null) {
+//            outState.putParcelable(SAVED_INSTANCE_BITMAP, editedBitmap);
+//            outState.putString(SAVED_INSTANCE_URI, apkURI.toString());
+//        }
+//        super.onSaveInstanceState(outState);
+//    }
 
 
     private void processImage(int image) {
@@ -174,6 +210,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             paint.setStrokeWidth(6f);
             Canvas canvas = new Canvas(editedBitmap);
             canvas.drawBitmap(bitmap, 0, 0, paint);
+
+
+
             Frame frame = new Frame.Builder().setBitmap(editedBitmap).build();
             SparseArray<Face> faces = detector.detect(frame);
             txtSampleDesc.setText(null);
@@ -237,7 +276,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void processCameraPicture() throws Exception {
-        Bitmap bitmap = decodeBitmapUri(this, imageUri);
+        Bitmap bitmap = decodeBitmapUri(this, apkURI);
         if (detector.isOperational() && bitmap != null) {
             editedBitmap = Bitmap.createBitmap(bitmap.getWidth(), bitmap
                     .getHeight(), bitmap.getConfig());
@@ -281,8 +320,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Toast.makeText(this, "Please take a valid photo", Toast.LENGTH_SHORT).show();
                 startCamera();
             } else {
-
-                btnTakePicture.setText("valid Photo");
                 imgTakePicture.setImageBitmap(editedBitmap);
                // txtTakenPicDesc.setText(txtTakenPicDesc.getText() + "No of Faces Detected: " + " " + String.valueOf(faces.size()));
                 txtTakenPicDesc.setText("Valid photo");
